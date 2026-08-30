@@ -4,7 +4,7 @@ import { connectDB } from "@/lib/mongodb";
 import { Broadcast } from "@/models/Broadcast";
 import { ContactMessage } from "@/models/ContactMessage";
 
-const ALLOWED_ADMINS = ["ikennaibenemee@gmail.com", "contact@boringthinkers.com"];
+const ALLOWED_ADMINS = ["ikennaibenemee@gmail.com", "contact@boringthinkers.com", "bensonogholi@gmail.com"];
 
 export async function GET() {
     const cookieStore = await cookies();
