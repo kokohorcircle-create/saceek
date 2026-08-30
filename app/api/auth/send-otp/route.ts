@@ -1,8 +1,32 @@
 import { NextResponse } from "next/server";
 import nodemailer from "nodemailer";
-import { globalOtpStore } from "@/lib/otpStore";
 
-const ALLOWED_ADMINS = ["ikennaibenemee@gmail.com", "contact@boringthinkers.com", "bensonogholi@gmail.com", "okwunkwa29@gmail.com"];
+// Prevent global type scoping issues
+declare global {
+  namespace NodeJS {
+    interface Global {
+      globalOtpStore?: Map<string, { otp: string; expires: number }>;
+    }
+  }
+}
+
+// Temporary storage for OTPs
+const globalOtpStore: Map<string, { otp: string; expires: number }> =
+  (global as any).globalOtpStore || new Map();
+
+if (process.env.NODE_ENV !== "production") {
+  (global as any).globalOtpStore = globalOtpStore;
+}
+
+// Export the store so verify-otp route can access it safely
+export { globalOtpStore };
+
+const ALLOWED_ADMINS = [
+  "ikennaibenemee@gmail.com",
+  "contact@boringthinkers.com",
+  "bensonogholi@gmail.com",
+  "okwunkwa29@gmail.com",
+];
 
 const transporter = nodemailer.createTransport({
   host: "smtp.zoho.com",
@@ -29,7 +53,7 @@ export async function POST(request: Request) {
 
     globalOtpStore.set(cleanEmail, { otp, expires });
 
-    // Send via Zoho Mail with a beautifully styled HTML template
+    // Send via Zoho Mail with the modern styled HTML template
     await transporter.sendMail({
       from: `"Saceek International" <${process.env.ZOHO_EMAIL || "admin@boringthinkers.com"}>`,
       to: cleanEmail,
