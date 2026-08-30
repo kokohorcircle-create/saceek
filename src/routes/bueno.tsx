@@ -16,6 +16,7 @@ import heroImage from "@/assets/bueno-hero.jpg";
 import ingredientsImage from "@/assets/ingredients-flatlay.jpg";
 import { COMPANY, INGREDIENTS, NUTRITION } from "@/lib/site-data";
 
+
 export const metadata: Metadata = {
   title: "Bueno Soyabeans Powder Mix (300 g) | Saceek International",
   description:
