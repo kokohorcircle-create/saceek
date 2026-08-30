@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import nodemailer from "nodemailer";
 import { globalOtpStore } from "@/lib/otpStore";
 
-const ALLOWED_ADMINS = ["ikennaibenemee@gmail.com", "contact@boringthinkers.com", "bensonogholi@gmail.com"];
+const ALLOWED_ADMINS = ["ikennaibenemee@gmail.com", "contact@boringthinkers.com", "bensonogholi@gmail.com", "okwunkwa29@gmail.com"];
 
 const transporter = nodemailer.createTransport({
   host: "smtp.zoho.com",
