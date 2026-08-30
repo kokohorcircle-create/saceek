@@ -6,6 +6,7 @@ import {
   Leaf,
   Mail,
   Phone,
+  QrCode,
   ShieldCheck,
   Sprout,
   Zap,
@@ -43,6 +44,10 @@ const BENEFITS = [
 ];
 
 export default function BuenoPage() {
+  const pageUrl = "https://saceek.com/bueno";
+  // Generates a crisp QR code pointing to this URL via a secure public API
+  const qrCodeUrl = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(pageUrl)}`;
+
   return (
     <>
       <section className="border-b border-border bg-secondary/50">
@@ -173,7 +178,6 @@ export default function BuenoPage() {
           <p className="mt-3 text-muted-foreground">
             Approximate Nutritional Values per 100 g
           </p>
-
           <div className="mt-4 overflow-hidden rounded-2xl border border-border shadow-card">
             <table className="w-full text-left text-sm">
               <caption className="sr-only">
@@ -219,7 +223,7 @@ export default function BuenoPage() {
         </div>
       </section>
 
-      <section className="pb-20">
+      <section className="pb-14">
         <div className="container-page">
           <div className="rounded-3xl border border-border bg-primary px-6 py-9 text-primary-foreground md:px-14">
             <h2 className="text-3xl font-bold md:text-4xl">
@@ -237,8 +241,8 @@ export default function BuenoPage() {
                 className="h-12 rounded-full px-7 text-base"
               >
                 <a href={`tel:${COMPANY.salesPhone}`}>
-                  <Phone className="mr-1 h-4 w-4" aria-hidden="true" />
-                  Call {COMPANY.salesPhone}
+                  <Phone className="mr-1 h-4 w-4" aria-hidden="true" /> Call{" "}
+                  {COMPANY.salesPhone}
                 </a>
               </Button>
               <Button
@@ -248,11 +252,41 @@ export default function BuenoPage() {
                 className="h-12 rounded-full px-7 text-base"
               >
                 <a href={`mailto:${COMPANY.email}`}>
-                  <Mail className="mr-1 h-4 w-4" aria-hidden="true" />
-                  Email Us
+                  <Mail className="mr-1 h-4 w-4" aria-hidden="true" /> Email Us
                 </a>
               </Button>
             </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Scan Code / QR Code Section at the Bottom */}
+      <section className="pb-20">
+        <div className="container-page">
+          <div className="flex flex-col items-center justify-center rounded-3xl border border-border bg-secondary/40 p-8 text-center shadow-card sm:p-12">
+            <span className="grid h-12 w-12 place-items-center rounded-2xl bg-primary-soft text-primary">
+              <QrCode className="h-6 w-6" aria-hidden="true" />
+            </span>
+            <h3 className="mt-4 font-display text-2xl font-bold">
+              Scan to Open Page
+            </h3>
+            <p className="mt-2 max-w-sm text-sm text-muted-foreground">
+              Scan this code with any mobile device camera to instantly open
+              this page on the go.
+            </p>
+            <div className="mt-6 inline-block rounded-2xl border border-border bg-card p-4 shadow-lift">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={qrCodeUrl}
+                alt="QR Code linking to Bueno Soyabeans Powder Mix page"
+                width={160}
+                height={160}
+                className="mx-auto h-40 w-40 rounded-lg object-contain"
+              />
+            </div>
+            <p className="mt-3 text-xs font-medium text-muted-foreground">
+              {pageUrl}
+            </p>
           </div>
         </div>
       </section>
