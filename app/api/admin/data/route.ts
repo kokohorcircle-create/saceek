@@ -20,7 +20,7 @@ export async function GET() {
         const enquiries = await ContactMessage.find({}).sort({ createdAt: -1 }).lean();
 
         // Format fields to match frontend types safely
-        const formattedBroadcasts = broadcasts.map((b) => ({
+        const formattedBroadcasts = broadcasts.map((b: any) => ({
             id: b._id.toString(),
             title: b.title,
             body: b.body,
@@ -29,10 +29,10 @@ export async function GET() {
             cta_url: b.cta_url || null,
             is_active: b.is_active,
             ends_at: b.ends_at ? b.ends_at.toISOString() : null,
-            created_at: b.created_at.toISOString(),
+            created_at: b.created_at ? new Date(b.created_at).toISOString() : new Date().toISOString(),
         }));
 
-        const formattedEnquiries = enquiries.map((e) => ({
+        const formattedEnquiries = enquiries.map((e: any) => ({
             id: e._id.toString(),
             full_name: e.name,
             email: e.email || "",
@@ -40,8 +40,8 @@ export async function GET() {
             subject: e.subject || "Enquiry",
             enquiry_type: e.inquiryType,
             message: e.message,
-            is_read: (e as any).is_read || false,
-            created_at: e.createdAt.toISOString(),
+            is_read: e.is_read || false,
+            created_at: e.createdAt ? new Date(e.createdAt).toISOString() : new Date().toISOString(),
         }));
 
         return NextResponse.json({

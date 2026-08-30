@@ -6,6 +6,14 @@ if (!MONGODB_URI) {
     throw new Error("Please define the MONGODB_URI environment variable inside .env.local");
 }
 
+// Extend global scope type for Mongoose caching in development
+declare global {
+    var mongoose: {
+        conn: typeof mongoose | null;
+        promise: Promise<typeof mongoose> | null;
+    } | undefined;
+}
+
 /**
  * Global is used here to maintain a cached connection across hot reloads
  * in development. This prevents connections growing exponentially
@@ -18,26 +26,26 @@ if (!cached) {
 }
 
 export async function connectDB() {
-    if (cached.conn) {
+    if (cached?.conn) {
         return cached.conn;
     }
 
-    if (!cached.promise) {
+    if (!cached?.promise) {
         const opts = {
             bufferCommands: false,
         };
 
-        cached.promise = mongoose.connect(MONGODB_URI!, opts).then((mongoose) => {
-            return mongoose;
+        cached!.promise = mongoose.connect(MONGODB_URI!, opts).then((mongooseInstance) => {
+            return mongooseInstance;
         });
     }
 
     try {
-        cached.conn = await cached.promise;
+        cached!.conn = await cached!.promise;
     } catch (e) {
-        cached.promise = null;
+        cached!.promise = null;
         throw e;
     }
 
-    return cached.conn;
+    return cached!.conn;
 }
