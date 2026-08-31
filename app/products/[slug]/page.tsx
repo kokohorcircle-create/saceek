@@ -13,33 +13,48 @@ export default async function ProductDetailPage({
 }: {
   params: Promise<{ slug: string }>;
 }) {
-  const { slug } = await params;
+  // Properly await params for Next.js app router
+  const resolvedParams = await params;
+  const slug = decodeURIComponent(resolvedParams?.slug || "");
+
   await connectDB();
 
+  // 1. Try finding directly by the slug field
   let product = await Product.findOne({ slug }).lean();
 
-  let activeSlug = slug;
+  // 2. If not found, look up all products and check generated fallback slugs
   if (!product) {
     const allProducts = await Product.find({}).lean();
-    const found = allProducts.find((p: any) => {
-      const generatedSlug =
-        p.slug ||
-        `${(p.name || "").toLowerCase().replace(/[^a-z0-9]+/g, "-")}-${p._id.toString().slice(-4)}`;
-      return generatedSlug === slug;
-    });
-    if (found) {
-      product = found;
-      activeSlug = found.slug || slug;
-    } else {
-      product = null;
-    }
+    product =
+      allProducts.find((p: any) => {
+        const generatedSlug =
+          p.slug ||
+          `${(p.name || "")
+            .toLowerCase()
+            .replace(/[^a-z0-9]+/g, "-")
+            .replace(/(^-|-$)+/g, "")}-${p._id.toString().slice(-4)}`;
+        return generatedSlug === slug;
+      }) || null;
   }
 
-  if (!product) notFound();
+  // 3. Absolute last resort: if the slug is actually a MongoDB ObjectId string
+  if (!product && slug.match(/^[0-9a-fA-F]{24}$/)) {
+    product = await Product.findById(slug).lean();
+  }
 
-  // Construct absolute specific target URL for the QR code
-  const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3001";
-  const productSpecificUrl = `${baseUrl}/products/${activeSlug}`;
+  if (!product) {
+    notFound();
+  }
+
+  const activeSlug =
+    product.slug ||
+    `${(product.name || "item")
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, "-")
+      .replace(/(^-|-$)+/g, "")}-${product._id.toString().slice(-4)}`;
+
+  const host = `https://www.saceek.com`;
+  const productSpecificUrl = `${host}/products/${activeSlug}`;
 
   // Auto-generate QR code on the fly if missing from database
   let displayScancodeUrl = product.scancode_url;
@@ -99,12 +114,18 @@ export default async function ProductDetailPage({
             </span>
           </div>
 
-          <a href={whatsappUrl} target="_blank" rel="noreferrer" className="block">
+          <a
+            href={whatsappUrl}
+            target="_blank"
+            rel="noreferrer"
+            className="block"
+          >
             <Button
               className="w-full rounded-full h-12 gap-2 bg-green-600 hover:bg-green-700 text-white font-medium shadow-md transition"
               disabled={product.stock <= 0}
             >
-              <MessageCircle className="h-5 w-5 fill-current" /> Chat on WhatsApp to Book
+              <MessageCircle className="h-5 w-5 fill-current" /> Chat on
+              WhatsApp to Book
             </Button>
           </a>
 
