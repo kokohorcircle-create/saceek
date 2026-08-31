@@ -38,22 +38,18 @@ export default function ProductModalClient({
         .replace(/(^-|-$)+/g, "")}-${product._id.toString().slice(-4)}`
     : "";
 
-  // Target URL now points directly to the modal query parameter format
+  // Target URL points directly to the modal query parameter format
   const host = "https://www.saceek.com";
   const productSpecificUrl = `${host}/products?product=${slug}`;
 
-  // Generate QR code dynamically when a product modal opens
+  // Always force-generate QR code dynamically on the fly (ignoring DB)
   useEffect(() => {
-    if (product) {
-      if (product.scancode_url) {
-        setQrCodeUrl(product.scancode_url);
-      } else {
-        QRCode.toDataURL(productSpecificUrl, { width: 300, margin: 2 })
-          .then((url) => setQrCodeUrl(url))
-          .catch((err) => console.error("QR Code gen error:", err));
-      }
+    if (product && slug) {
+      QRCode.toDataURL(productSpecificUrl, { width: 300, margin: 2 })
+        .then((url) => setQrCodeUrl(url))
+        .catch((err) => console.error("QR Code gen error:", err));
     }
-  }, [product, productSpecificUrl]);
+  }, [product, slug, productSpecificUrl]);
 
   const closeModal = () => {
     router.push("/products", { scroll: false });
@@ -109,18 +105,6 @@ export default function ProductModalClient({
               <p className="text-sm text-muted-foreground leading-relaxed">
                 {product.description || "No description provided."}
               </p>
-              <div className="text-sm font-medium pt-2">
-                Availability:{" "}
-                <span
-                  className={
-                    product.stock > 0 ? "text-green-600" : "text-red-500"
-                  }
-                >
-                  {product.stock > 0
-                    ? `${product.stock} in stock`
-                    : "Out of stock"}
-                </span>
-              </div>
             </div>
 
             <div className="space-y-4 pt-4 border-t border-border">
@@ -130,10 +114,7 @@ export default function ProductModalClient({
                 rel="noreferrer"
                 className="block"
               >
-                <Button
-                  className="w-full rounded-full h-12 gap-2 bg-green-600 hover:bg-green-700 text-white font-medium shadow-md transition"
-                  disabled={product.stock <= 0}
-                >
+                <Button className="w-full rounded-full h-12 gap-2 bg-green-600 hover:bg-green-700 text-white font-medium shadow-md transition">
                   <MessageCircle className="h-5 w-5 fill-current" /> Chat on
                   WhatsApp to Book
                 </Button>

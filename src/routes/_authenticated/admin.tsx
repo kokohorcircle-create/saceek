@@ -572,17 +572,7 @@ export default function AdminPage() {
                           </div>
                         </div>
                         <div className="flex gap-1.5 items-center">
-                          {p.scancode_url && (
-                            <a
-                              href={p.scancode_url}
-                              target="_blank"
-                              rel="noreferrer"
-                              title="View QR Scancode"
-                              className="text-xs text-primary underline mr-1 font-medium"
-                            >
-                              Scancode
-                            </a>
-                          )}
+                     
                           <Button
                             size="sm"
                             variant="outline"
