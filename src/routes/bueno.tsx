@@ -14,8 +14,10 @@ import {
 import { Button } from "@/components/ui/button";
 import heroImage from "@/assets/bueno-hero.jpg";
 import ingredientsImage from "@/assets/ingredients-flatlay.jpg";
+import photoA from "@/assets/photo-a.jpg";
+import photoB from "@/assets/photo-b.jpg";
+import photoC from "@/assets/photo-c.jpg";
 import { COMPANY, INGREDIENTS, NUTRITION } from "@/lib/site-data";
-
 
 export const metadata: Metadata = {
   title: "Bueno Soyabeans Powder Mix (300 g) | Saceek International",
@@ -171,6 +173,37 @@ export default function BuenoPage() {
         </div>
       </section>
 
+      {/* Feature showcase image using photo-a */}
+      <section className="section-y">
+        <div className="container-page">
+          <div className="grid items-center gap-8 lg:grid-cols-2">
+            <div>
+              <span className="text-xs font-semibold uppercase tracking-[0.2em] text-accent">
+                Pure & Natural
+              </span>
+              <h2 className="mt-2 text-3xl font-bold md:text-4xl">
+                Crafted for Quality and Great Taste
+              </h2>
+              <p className="mt-4 leading-relaxed text-muted-foreground">
+                Our meticulous blending process ensures that every serving of
+                Bueno retains maximum nutrients, smooth consistency, and a
+                naturally rich flavor you can look forward to every day.
+              </p>
+            </div>
+            <div className="overflow-hidden rounded-3xl border border-border shadow-lift">
+              <Image
+                src={photoA}
+                alt="Bueno Soyabeans Powder preparation or serving showcase"
+                loading="lazy"
+                width={800}
+                height={600}
+                className="h-full w-full object-cover"
+              />
+            </div>
+          </div>
+        </div>
+      </section>
+
       <section id="nutrition" className="section-y scroll-mt-24">
         <div className="container-page">
           <h2 className="text-3xl font-bold md:text-4xl">
@@ -224,7 +257,43 @@ export default function BuenoPage() {
         </div>
       </section>
 
-      <section className="pb-14">
+      {/* Dual photo gallery using photo-b and photo-c */}
+      <section className="section-y bg-secondary/30">
+        <div className="container-page">
+          <div className="text-center max-w-2xl mx-auto">
+            <h2 className="text-3xl font-bold md:text-4xl">
+              Everyday Wellness
+            </h2>
+            <p className="mt-3 text-muted-foreground">
+              See how Bueno fits seamlessly into your healthy daily routine.
+            </p>
+          </div>
+          <div className="mt-8 grid gap-6 sm:grid-cols-2">
+            <div className="overflow-hidden rounded-3xl border border-border shadow-card">
+              <Image
+                src={photoB}
+                alt="Bueno Soyabeans Powder packaging and lifestyle context"
+                loading="lazy"
+                width={800}
+                height={600}
+                className="h-full w-full object-cover transition-transform duration-300 hover:scale-105"
+              />
+            </div>
+            <div className="overflow-hidden rounded-3xl border border-border shadow-card">
+              <Image
+                src={photoC}
+                alt="Enjoying a cup of Bueno Soyabeans Powder drink"
+                loading="lazy"
+                width={800}
+                height={600}
+                className="h-full w-full object-cover transition-transform duration-300 hover:scale-105"
+              />
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section className="pb-14 pt-12">
         <div className="container-page">
           <div className="rounded-3xl border border-border bg-primary px-6 py-9 text-primary-foreground md:px-14">
             <h2 className="text-3xl font-bold md:text-4xl">
