@@ -92,7 +92,9 @@ export default function AdminPage() {
 
   const loadData = useCallback(async () => {
     const session = localStorage.getItem("admin_session");
+
     try {
+      // Enquiries
       const res = await fetch("/api/admin/data", {
         headers: { "x-admin-email": session || "" },
       });
@@ -100,10 +102,21 @@ export default function AdminPage() {
       if (!res.ok || !data.success) {
         throw new Error(data.error || "Failed to load admin data");
       }
-      setItems(data.broadcasts || []);
       setEnquiries(data.enquiries || []);
 
-      const prodRes = await fetch("/api/admin/products");
+      // Broadcasts (new dedicated route)
+      const broadcastRes = await fetch("/api/admin/broadcasts", {
+        headers: { "x-admin-email": session || "" },
+      });
+      const broadcastData = await broadcastRes.json();
+      if (broadcastRes.ok && broadcastData.success) {
+        setItems(broadcastData.broadcasts || []);
+      }
+
+      // Products
+      const prodRes = await fetch("/api/admin/products", {
+        headers: { "x-admin-email": session || "" },
+      });
       const prodData = await prodRes.json();
       if (prodData.success) {
         setProducts(prodData.products || []);
@@ -153,10 +166,15 @@ export default function AdminPage() {
   const createBroadcast = async (e: React.FormEvent) => {
     e.preventDefault();
     setBusy(true);
+    const session = localStorage.getItem("admin_session");
+
     try {
       const res = await fetch("/api/admin/broadcasts", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          "x-admin-email": session || "",
+        },
         body: JSON.stringify({
           title,
           body,
@@ -166,14 +184,18 @@ export default function AdminPage() {
           ends_at: endsAt ? new Date(endsAt).toISOString() : null,
         }),
       });
+
       const data = await res.json();
-      if (!res.ok || !data.success) throw new Error(data.error);
+      if (!res.ok || !data.success)
+        throw new Error(data.error || "Failed to publish");
+
       toast.success("Broadcast published to the site");
       setTitle("");
       setBody("");
       setCtaLabel("");
       setCtaUrl("");
       setEndsAt("");
+      setIntensity("mild");
       await loadData();
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Failed to publish");
@@ -277,10 +299,14 @@ export default function AdminPage() {
   };
 
   const toggleBroadcast = async (item: Broadcast) => {
+    const session = localStorage.getItem("admin_session");
     try {
       const res = await fetch(`/api/admin/broadcasts/${item.id}`, {
         method: "PATCH",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          "x-admin-email": session || "",
+        },
         body: JSON.stringify({ is_active: !item.is_active }),
       });
       const data = await res.json();
@@ -292,9 +318,13 @@ export default function AdminPage() {
   };
 
   const removeBroadcast = async (id: string) => {
+    const session = localStorage.getItem("admin_session");
     try {
       const res = await fetch(`/api/admin/broadcasts/${id}`, {
         method: "DELETE",
+        headers: {
+          "x-admin-email": session || "",
+        },
       });
       const data = await res.json();
       if (!res.ok || !data.success) throw new Error(data.error);
@@ -311,7 +341,7 @@ export default function AdminPage() {
       await fetch("/api/auth/signout", { method: "POST" });
       router.push("/auth");
       router.refresh();
-    } catch (error) {
+    } catch {
       router.push("/auth");
     }
   };
@@ -567,12 +597,11 @@ export default function AdminPage() {
                           <div>
                             <h4 className="font-semibold">{p.name}</h4>
                             <p className="text-xs text-muted-foreground">
-                            ₦{p.price.toFixed(2)} • Stock: {p.stock}
+                              ₦{p.price.toFixed(2)} • Stock: {p.stock}
                             </p>
                           </div>
                         </div>
                         <div className="flex gap-1.5 items-center">
-                     
                           <Button
                             size="sm"
                             variant="outline"
@@ -609,6 +638,7 @@ export default function AdminPage() {
               <Megaphone className="h-4 w-4 text-primary" aria-hidden="true" />{" "}
               New broadcast
             </h2>
+
             <div className="space-y-2">
               <Label htmlFor="b-title">Title</Label>
               <Input
@@ -619,6 +649,7 @@ export default function AdminPage() {
                 onChange={(e) => setTitle(e.target.value)}
               />
             </div>
+
             <div className="space-y-2">
               <Label htmlFor="b-body">Message</Label>
               <Textarea
@@ -630,6 +661,7 @@ export default function AdminPage() {
                 onChange={(e) => setBody(e.target.value)}
               />
             </div>
+
             <div className="space-y-2">
               <Label>Push style</Label>
               <div className="grid grid-cols-2 gap-3">
@@ -656,6 +688,39 @@ export default function AdminPage() {
                 ))}
               </div>
             </div>
+
+            {/* Optional CTA + Ends At fields */}
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div className="space-y-2">
+                <Label htmlFor="b-cta-label">CTA Label (optional)</Label>
+                <Input
+                  id="b-cta-label"
+                  value={ctaLabel}
+                  onChange={(e) => setCtaLabel(e.target.value)}
+                  placeholder="e.g. Shop Now"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="b-cta-url">CTA URL (optional)</Label>
+                <Input
+                  id="b-cta-url"
+                  value={ctaUrl}
+                  onChange={(e) => setCtaUrl(e.target.value)}
+                  placeholder="https://..."
+                />
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="b-ends-at">Ends at (optional)</Label>
+              <Input
+                id="b-ends-at"
+                type="datetime-local"
+                value={endsAt}
+                onChange={(e) => setEndsAt(e.target.value)}
+              />
+            </div>
+
             <Button
               type="submit"
               className="h-11 w-full rounded-full"
@@ -679,10 +744,29 @@ export default function AdminPage() {
                   key={item.id}
                   className="rounded-2xl border border-border bg-card p-5 shadow-card"
                 >
-                  <h3 className="font-semibold">{item.title}</h3>
-                  <p className="mt-1 text-sm text-muted-foreground">
-                    {item.body}
-                  </p>
+                  <div className="flex items-start justify-between gap-3">
+                    <div>
+                      <h3 className="font-semibold">{item.title}</h3>
+                      <p className="mt-1 text-sm text-muted-foreground">
+                        {item.body}
+                      </p>
+                      {item.cta_label && (
+                        <p className="mt-1 text-xs text-primary">
+                          CTA: {item.cta_label}
+                        </p>
+                      )}
+                    </div>
+                    <span
+                      className={`shrink-0 rounded-full px-2 py-0.5 text-xs font-medium ${
+                        item.is_active
+                          ? "bg-green-100 text-green-700"
+                          : "bg-muted text-muted-foreground"
+                      }`}
+                    >
+                      {item.is_active ? "Active" : "Off"}
+                    </span>
+                  </div>
+
                   <div className="mt-4 flex gap-2">
                     <Button
                       size="sm"

@@ -3,6 +3,7 @@ import { Manrope, Sora } from "next/font/google";
 import "./globals.css";
 import { SiteHeader } from "@/src/components/site-header";
 import { SiteFooter } from "@/src/components/site-footer";
+import { BroadcastBanner } from "@/src/components/BroadcastBanner"; // Import the banner
 
 const manrope = Manrope({
   variable: "--font-sans",
@@ -31,6 +32,7 @@ export default function RootLayout({
       className={`${manrope.variable} ${sora.variable} h-full antialiased`}
     >
       <body className="min-h-full flex flex-col">
+        <BroadcastBanner /> {/* Added here to display top-mid */}
         <SiteHeader />
         <main className="flex-1">{children}</main>
         <SiteFooter />
