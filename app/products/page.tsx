@@ -1,6 +1,7 @@
-import Link from "next/link";
 import { connectDB } from "@/lib/mongodb";
 import Product from "@/models/Product";
+import Link from "next/link";
+import ProductModalClient from "@/components/ProductModalClient";
 
 export const revalidate = 0; // Always fresh data
 
@@ -8,29 +9,38 @@ export default async function ProductsPage() {
   await connectDB();
   const products = await Product.find({}).sort({ created_at: -1 }).lean();
 
+  // Clean serialization for client component boundary
+  const serializedProducts = products.map((p: any) => ({
+    ...p,
+    _id: p._id.toString(),
+    created_at: p.created_at ? new Date(p.created_at).toISOString() : null,
+    updated_at: p.updated_at ? new Date(p.updated_at).toISOString() : null,
+  }));
+
   return (
     <main className="container-page py-12">
       <div className="text-center max-w-2xl mx-auto mb-10">
         <h1 className="font-display text-3xl font-bold">Our Products</h1>
         <p className="text-muted-foreground mt-2">
-          Explore our collection of items available for order.
+          Explore our collection of items available for order. Click any item to
+          view details instantly.
         </p>
       </div>
 
       <div className="grid gap-6 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
-        {products.map((p: any) => {
-          // Absolute fail-safe: generates slug if missing, preventing /undefined
+        {serializedProducts.map((p: any) => {
           const productSlug =
             p.slug ||
             `${(p.name || "item")
               .toLowerCase()
               .replace(/[^a-z0-9]+/g, "-")
-              .replace(/(^-|-$)+/g, "")}-${p._id.toString().slice(-4)}`;
+              .replace(/(^-|-$)+/g, "")}-${p._id.slice(-4)}`;
 
           return (
             <Link
-              key={p._id.toString()}
-              href={`/products/${productSlug}`}
+              key={p._id}
+              href={`/products?product=${productSlug}`}
+              scroll={false}
               className="group rounded-3xl border border-border bg-card p-4 shadow-card transition hover:shadow-lg flex flex-col justify-between"
             >
               <div>
@@ -63,6 +73,9 @@ export default async function ProductsPage() {
           );
         })}
       </div>
+
+      {/* Renders the modal whenever ?product=slug is present in the URL */}
+      <ProductModalClient products={serializedProducts} />
     </main>
   );
 }
