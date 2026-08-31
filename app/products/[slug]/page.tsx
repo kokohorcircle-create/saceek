@@ -2,7 +2,7 @@ import { notFound } from "next/navigation";
 import { connectDB } from "@/lib/mongodb";
 import Product from "@/models/Product";
 import { Button } from "@/components/ui/button";
-import { QrCode, ShoppingCart, Download } from "lucide-react";
+import { QrCode, Download, MessageCircle } from "lucide-react";
 import QRCode from "qrcode";
 
 export default async function ProductDetailPage({
@@ -51,6 +51,13 @@ export default async function ProductDetailPage({
     }
   }
 
+  // Format WhatsApp Message link
+  const whatsappNumber = "2347077914443"; // Nigerian country code format without the leading zero
+  const whatsappMessage = encodeURIComponent(
+    `Hello! I want to book/order this product:\n\n*${product.name}*\nPrice: ₦${product.price.toLocaleString()}\nLink: ${productSpecificUrl}\n\nPlease give me more details.`
+  );
+  const whatsappUrl = `https://wa.me/${whatsappNumber}?text=${whatsappMessage}`;
+
   return (
     <main className="container-page py-12 max-w-4xl">
       <div className="grid gap-8 md:grid-cols-2 items-start">
@@ -89,12 +96,20 @@ export default async function ProductDetailPage({
             </span>
           </div>
 
-          <Button
-            className="w-full rounded-full h-12 gap-2"
-            disabled={product.stock <= 0}
+          <a
+            href={whatsappUrl}
+            target="_blank"
+            rel="noreferrer"
+            className="block"
           >
-            <ShoppingCart className="h-4 w-4" /> Add to Cart
-          </Button>
+            <Button
+              className="w-full rounded-full h-12 gap-2 bg-green-600 hover:bg-green-700 text-white font-medium shadow-md transition"
+              disabled={product.stock <= 0}
+            >
+              <MessageCircle className="h-5 w-5 fill-current" /> Chat on
+              WhatsApp to Book
+            </Button>
+          </a>
 
           {displayScancodeUrl && (
             <div className="pt-6 border-t border-border flex items-center gap-4">
@@ -138,44 +153,6 @@ export default async function ProductDetailPage({
           )}
         </div>
       </div>
-
-      {/* Prominent Bottom Scancode Section (Always renders with auto-generation) */}
-      {/* {displayScancodeUrl && (
-        <div className="mt-12 rounded-3xl border border-border bg-card p-6 sm:p-8 shadow-card flex flex-col sm:flex-row items-center gap-6">
-          <img
-            src={displayScancodeUrl}
-            alt={`Official QR Tag for ${product.name}`}
-            className="w-36 h-36 rounded-2xl border-2 border-border p-2 bg-white shadow-sm shrink-0"
-          />
-          <div className="space-y-2 text-center sm:text-left">
-            <h3 className="font-display text-xl font-bold flex items-center justify-center sm:justify-start gap-2">
-              <QrCode className="h-5 w-5 text-primary" /> Official Product
-              Scancode Tag
-            </h3>
-            <p className="text-sm text-muted-foreground leading-relaxed">
-              Scan this scancode with any smartphone camera to pull up{" "}
-              <span className="font-semibold text-foreground">
-                {product.name}
-              </span>{" "}
-              immediately. Designed for physical storefront displays, item tags,
-              and inventory scanning.
-            </p>
-            <div className="pt-3">
-              <a
-                href={displayScancodeUrl}
-                download={`${activeSlug}-scancode.png`}
-                target="_blank"
-                rel="noreferrer"
-              >
-                <Button variant="outline" className="rounded-full gap-2">
-                  <Download className="h-4 w-4" /> Download Printable Scancode
-                  Tag
-                </Button>
-              </a>
-            </div>
-          </div>
-        </div>
-      )} */}
     </main>
   );
 }
