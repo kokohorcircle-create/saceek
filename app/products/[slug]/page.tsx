@@ -5,6 +5,9 @@ import { Button } from "@/components/ui/button";
 import { QrCode, Download, MessageCircle } from "lucide-react";
 import QRCode from "qrcode";
 
+export const dynamic = "force-dynamic";
+export const dynamicParams = true;
+
 export default async function ProductDetailPage({
   params,
 }: {
@@ -52,7 +55,7 @@ export default async function ProductDetailPage({
   }
 
   // Format WhatsApp Message link
-  const whatsappNumber = "2347077914443"; // Nigerian country code format without the leading zero
+  const whatsappNumber = "2347077914443";
   const whatsappMessage = encodeURIComponent(
     `Hello! I want to book/order this product:\n\n*${product.name}*\nPrice: ₦${product.price.toLocaleString()}\nLink: ${productSpecificUrl}\n\nPlease give me more details.`
   );
@@ -96,18 +99,12 @@ export default async function ProductDetailPage({
             </span>
           </div>
 
-          <a
-            href={whatsappUrl}
-            target="_blank"
-            rel="noreferrer"
-            className="block"
-          >
+          <a href={whatsappUrl} target="_blank" rel="noreferrer" className="block">
             <Button
               className="w-full rounded-full h-12 gap-2 bg-green-600 hover:bg-green-700 text-white font-medium shadow-md transition"
               disabled={product.stock <= 0}
             >
-              <MessageCircle className="h-5 w-5 fill-current" /> Chat on
-              WhatsApp to Book
+              <MessageCircle className="h-5 w-5 fill-current" /> Chat on WhatsApp to Book
             </Button>
           </a>
 
