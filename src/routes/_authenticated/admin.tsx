@@ -196,6 +196,7 @@ export default function AdminPage() {
       router.refresh();
     } catch (error) {
       console.error("[AdminPage] signOut error:", error);
+      router.push("/auth");
     }
   };
 
@@ -213,7 +214,7 @@ export default function AdminPage() {
 
   if (isAdmin === false) {
     return (
-      <section className="section-y">
+      <section className="section-y relative">
         <div className="container-page max-w-xl text-center">
           <ShieldAlert
             className="mx-auto h-10 w-10 text-destructive"
@@ -232,6 +233,42 @@ export default function AdminPage() {
             Sign out
           </Button>
         </div>
+
+        {/* Custom Sign Out Confirmation Modal for Unauthorized View */}
+        {showSignOutModal && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-4 animate-in fade-in duration-200">
+            <div className="w-full max-w-sm rounded-3xl border border-border bg-card p-6 shadow-2xl space-y-4">
+              <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-primary-soft text-primary mx-auto">
+                <LogOut className="h-6 w-6" aria-hidden="true" />
+              </div>
+              <div className="text-center space-y-1">
+                <h3 className="font-display text-lg font-bold">
+                  Sign out of admin?
+                </h3>
+                <p className="text-sm text-muted-foreground">
+                  You will need to sign back in with your credentials to manage
+                  broadcasts and enquiries.
+                </p>
+              </div>
+              <div className="grid grid-cols-2 gap-3 pt-2">
+                <Button
+                  variant="outline"
+                  className="rounded-full"
+                  onClick={() => setShowSignOutModal(false)}
+                >
+                  Cancel
+                </Button>
+                <Button
+                  variant="destructive"
+                  className="rounded-full"
+                  onClick={confirmSignOut}
+                >
+                  Sign out
+                </Button>
+              </div>
+            </div>
+          </div>
+        )}
       </section>
     );
   }
