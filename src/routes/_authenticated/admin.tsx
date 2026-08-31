@@ -8,9 +8,13 @@ import {
   Power,
   ShieldAlert,
   Inbox,
-  Mail,
-  Phone,
   LogOut,
+  PackagePlus,
+  Package,
+  Pencil,
+  X,
+  Check,
+  Upload,
 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -42,12 +46,27 @@ type Broadcast = {
   created_at: string;
 };
 
+type Product = {
+  id: string;
+  name: string;
+  description: string;
+  price: number;
+  image_url: string;
+  stock: number;
+  scancode_url?: string;
+  created_at: string;
+};
+
 export default function AdminPage() {
   const router = useRouter();
   const [isAdmin, setIsAdmin] = useState<boolean | null>(null);
   const [items, setItems] = useState<Broadcast[]>([]);
   const [enquiries, setEnquiries] = useState<Enquiry[]>([]);
+  const [products, setProducts] = useState<Product[]>([]);
   const [busy, setBusy] = useState(false);
+  const [productBusy, setProductBusy] = useState(false);
+
+  // Broadcast Form State
   const [title, setTitle] = useState("");
   const [body, setBody] = useState("");
   const [intensity, setIntensity] = useState<"mild" | "aggressive">("mild");
@@ -55,44 +74,48 @@ export default function AdminPage() {
   const [ctaUrl, setCtaUrl] = useState("");
   const [endsAt, setEndsAt] = useState("");
 
-  // State for custom signout confirmation modal
+  // Product Form State (Creation)
+  const [productName, setProductName] = useState("");
+  const [productDesc, setProductDesc] = useState("");
+  const [productPrice, setProductPrice] = useState("");
+  const [productImageFile, setProductImageFile] = useState<File | null>(null);
+  const [productStock, setProductStock] = useState("");
+
+  // Product Editing State
+  const [editingProductId, setEditingProductId] = useState<string | null>(null);
+  const [editName, setEditName] = useState("");
+  const [editPrice, setEditPrice] = useState("");
+  const [editStock, setEditStock] = useState("");
+
+  // Signout Modal State
   const [showSignOutModal, setShowSignOutModal] = useState(false);
 
   const loadData = useCallback(async () => {
-    console.log("[AdminPage] loadData: Starting fetch for admin data...");
     const session = localStorage.getItem("admin_session");
-    console.log(
-      "[AdminPage] loadData: Retrieved session from localStorage:",
-      session
-    );
     try {
       const res = await fetch("/api/admin/data", {
-        headers: {
-          "x-admin-email": session || "",
-        },
+        headers: { "x-admin-email": session || "" },
       });
-      console.log("[AdminPage] loadData: Response status:", res.status);
       const data = await res.json();
-      console.log("[AdminPage] loadData: Response data payload:", data);
       if (!res.ok || !data.success) {
         throw new Error(data.error || "Failed to load admin data");
       }
-      console.log(
-        "[AdminPage] loadData: Success! Setting broadcasts and enquiries items."
-      );
       setItems(data.broadcasts || []);
       setEnquiries(data.enquiries || []);
+
+      const prodRes = await fetch("/api/admin/products");
+      const prodData = await prodRes.json();
+      if (prodData.success) {
+        setProducts(prodData.products || []);
+      }
+
       setIsAdmin(true);
     } catch (error) {
-      console.error("[AdminPage] loadData: Error caught during fetch:", error);
       setIsAdmin(false);
     }
   }, []);
 
   useEffect(() => {
-    console.log(
-      "[AdminPage] useEffect: Component mounted, triggering loadData()."
-    );
     void loadData();
   }, [loadData]);
 
@@ -127,7 +150,7 @@ export default function AdminPage() {
     }
   };
 
-  const create = async (e: React.FormEvent) => {
+  const createBroadcast = async (e: React.FormEvent) => {
     e.preventDefault();
     setBusy(true);
     try {
@@ -159,7 +182,101 @@ export default function AdminPage() {
     }
   };
 
-  const toggle = async (item: Broadcast) => {
+  const createProduct = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setProductBusy(true);
+    const session = localStorage.getItem("admin_session");
+
+    try {
+      const formData = new FormData();
+      formData.append("name", productName);
+      formData.append("description", productDesc);
+      formData.append("price", productPrice);
+      formData.append("stock", productStock || "0");
+      if (productImageFile) {
+        formData.append("image", productImageFile);
+      }
+
+      const res = await fetch("/api/admin/products", {
+        method: "POST",
+        headers: {
+          "x-admin-email": session || "",
+        },
+        body: formData,
+      });
+
+      const data = await res.json();
+      if (!res.ok || !data.success) throw new Error(data.error);
+
+      toast.success("Product & Scancode created successfully!");
+      setProductName("");
+      setProductDesc("");
+      setProductPrice("");
+      setProductImageFile(null);
+      setProductStock("");
+      await loadData();
+    } catch (error) {
+      toast.error(
+        error instanceof Error ? error.message : "Failed to add product"
+      );
+    } finally {
+      setProductBusy(false);
+    }
+  };
+
+  const startEditingProduct = (p: Product) => {
+    setEditingProductId(p.id);
+    setEditName(p.name);
+    setEditPrice(p.price.toString());
+    setEditStock(p.stock.toString());
+  };
+
+  const saveEditedProduct = async (id: string) => {
+    const session = localStorage.getItem("admin_session");
+    try {
+      const res = await fetch(`/api/admin/products/${id}`, {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+          "x-admin-email": session || "",
+        },
+        body: JSON.stringify({
+          name: editName,
+          price: parseFloat(editPrice),
+          stock: parseInt(editStock) || 0,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok || !data.success) throw new Error(data.error);
+      toast.success("Product updated");
+      setEditingProductId(null);
+      await loadData();
+    } catch (error) {
+      toast.error(
+        error instanceof Error ? error.message : "Failed to update product"
+      );
+    }
+  };
+
+  const deleteProduct = async (id: string) => {
+    const session = localStorage.getItem("admin_session");
+    try {
+      const res = await fetch(`/api/admin/products/${id}`, {
+        method: "DELETE",
+        headers: { "x-admin-email": session || "" },
+      });
+      const data = await res.json();
+      if (!res.ok || !data.success) throw new Error(data.error);
+      toast.success("Product deleted");
+      await loadData();
+    } catch (error) {
+      toast.error(
+        error instanceof Error ? error.message : "Failed to delete product"
+      );
+    }
+  };
+
+  const toggleBroadcast = async (item: Broadcast) => {
     try {
       const res = await fetch(`/api/admin/broadcasts/${item.id}`, {
         method: "PATCH",
@@ -174,7 +291,7 @@ export default function AdminPage() {
     }
   };
 
-  const remove = async (id: string) => {
+  const removeBroadcast = async (id: string) => {
     try {
       const res = await fetch(`/api/admin/broadcasts/${id}`, {
         method: "DELETE",
@@ -195,7 +312,6 @@ export default function AdminPage() {
       router.push("/auth");
       router.refresh();
     } catch (error) {
-      console.error("[AdminPage] signOut error:", error);
       router.push("/auth");
     }
   };
@@ -234,7 +350,6 @@ export default function AdminPage() {
           </Button>
         </div>
 
-        {/* Custom Sign Out Confirmation Modal for Unauthorized View */}
         {showSignOutModal && (
           <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-4 animate-in fade-in duration-200">
             <div className="w-full max-w-sm rounded-3xl border border-border bg-card p-6 shadow-2xl space-y-4">
@@ -246,8 +361,7 @@ export default function AdminPage() {
                   Sign out of admin?
                 </h3>
                 <p className="text-sm text-muted-foreground">
-                  You will need to sign back in with your credentials to manage
-                  broadcasts and enquiries.
+                  You will need to sign back in with your credentials.
                 </p>
               </div>
               <div className="grid grid-cols-2 gap-3 pt-2">
@@ -282,20 +396,223 @@ export default function AdminPage() {
               Admin Panel
             </p>
             <h1 className="mt-2 font-display text-3xl font-bold">
-              Site Broadcasts
+              Dashboard Management
             </h1>
           </div>
-          <Button
-            variant="outline"
-            className="rounded-full"
-            onClick={() => setShowSignOutModal(true)}
-          >
-            Sign out
-          </Button>
+          <div className="flex items-center gap-3">
+            <Button
+              variant="outline"
+              className="rounded-full"
+              onClick={() => router.push("/products")}
+            >
+              View Storefront
+            </Button>
+            <Button
+              variant="outline"
+              className="rounded-full"
+              onClick={() => setShowSignOutModal(true)}
+            >
+              Sign out
+            </Button>
+          </div>
         </div>
+
+        {/* Product Management Section */}
         <div className="mt-7 grid gap-7 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.1fr)]">
           <form
-            onSubmit={create}
+            onSubmit={createProduct}
+            className="space-y-4 rounded-3xl border border-border bg-card p-6 shadow-card"
+          >
+            <h2 className="flex items-center gap-2 font-display text-lg font-semibold">
+              <PackagePlus
+                className="h-4 w-4 text-primary"
+                aria-hidden="true"
+              />{" "}
+              Add Product & Scancode
+            </h2>
+            <div className="space-y-2">
+              <Label htmlFor="p-name">Product Name</Label>
+              <Input
+                id="p-name"
+                required
+                value={productName}
+                onChange={(e) => setProductName(e.target.value)}
+                placeholder="Ex. Premium Coffee Beans"
+              />
+            </div>
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div className="space-y-2">
+                <Label htmlFor="p-price">Price (₦)</Label>
+                <Input
+                  id="p-price"
+                  type="number"
+                  step="0.01"
+                  required
+                  value={productPrice}
+                  onChange={(e) => setProductPrice(e.target.value)}
+                  placeholder="29.99"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="p-stock">Stock Quantity</Label>
+                <Input
+                  id="p-stock"
+                  type="number"
+                  value={productStock}
+                  onChange={(e) => setProductStock(e.target.value)}
+                  placeholder="100"
+                />
+              </div>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="p-image-file">Upload Product Image</Label>
+              <div className="flex items-center gap-2">
+                <Input
+                  id="p-image-file"
+                  type="file"
+                  accept="image/*"
+                  onChange={(e) =>
+                    setProductImageFile(e.target.files?.[0] || null)
+                  }
+                  className="cursor-pointer file:mr-4 file:py-1 file:px-4 file:rounded-full file:border-0 file:text-xs file:font-semibold file:bg-primary/10 file:text-primary hover:file:bg-primary/20"
+                />
+              </div>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="p-desc">Description</Label>
+              <Textarea
+                id="p-desc"
+                rows={3}
+                value={productDesc}
+                onChange={(e) => setProductDesc(e.target.value)}
+                placeholder="Describe your product..."
+              />
+            </div>
+            <Button
+              type="submit"
+              className="h-11 w-full rounded-full gap-2"
+              disabled={productBusy}
+            >
+              <Upload className="h-4 w-4" />
+              {productBusy ? "Uploading & Saving…" : "Upload & Create Product"}
+            </Button>
+          </form>
+
+          <div className="space-y-4">
+            <h2 className="flex items-center gap-2 font-display text-lg font-semibold">
+              <Package className="h-4 w-4 text-primary" /> Inventory Products (
+              {products.length})
+            </h2>
+            {products.length === 0 ? (
+              <p className="rounded-2xl border border-dashed border-border p-6 text-sm text-muted-foreground">
+                No products added yet.
+              </p>
+            ) : (
+              <div className="max-h-[500px] overflow-y-auto space-y-3 pr-1">
+                {products.map((p) => (
+                  <div
+                    key={p.id}
+                    className="rounded-2xl border border-border bg-card p-4 shadow-card"
+                  >
+                    {editingProductId === p.id ? (
+                      <div className="space-y-3">
+                        <Input
+                          value={editName}
+                          onChange={(e) => setEditName(e.target.value)}
+                          placeholder="Product Name"
+                        />
+                        <div className="grid grid-cols-2 gap-2">
+                          <Input
+                            type="number"
+                            step="0.01"
+                            value={editPrice}
+                            onChange={(e) => setEditPrice(e.target.value)}
+                            placeholder="Price"
+                          />
+                          <Input
+                            type="number"
+                            value={editStock}
+                            onChange={(e) => setEditStock(e.target.value)}
+                            placeholder="Stock"
+                          />
+                        </div>
+                        <div className="flex gap-2 pt-1">
+                          <Button
+                            size="sm"
+                            className="rounded-full"
+                            onClick={() => saveEditedProduct(p.id)}
+                          >
+                            <Check className="mr-1 h-3.5 w-3.5" /> Save
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="rounded-full"
+                            onClick={() => setEditingProductId(null)}
+                          >
+                            <X className="mr-1 h-3.5 w-3.5" /> Cancel
+                          </Button>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="flex items-center justify-between gap-4">
+                        <div className="flex items-center gap-3">
+                          {p.image_url && (
+                            <img
+                              src={p.image_url}
+                              alt={p.name}
+                              className="h-12 w-12 rounded-xl object-cover"
+                            />
+                          )}
+                          <div>
+                            <h4 className="font-semibold">{p.name}</h4>
+                            <p className="text-xs text-muted-foreground">
+                            ₦{p.price.toFixed(2)} • Stock: {p.stock}
+                            </p>
+                          </div>
+                        </div>
+                        <div className="flex gap-1.5 items-center">
+                          {p.scancode_url && (
+                            <a
+                              href={p.scancode_url}
+                              target="_blank"
+                              rel="noreferrer"
+                              title="View QR Scancode"
+                              className="text-xs text-primary underline mr-1 font-medium"
+                            >
+                              Scancode
+                            </a>
+                          )}
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="rounded-full h-8 w-8 p-0"
+                            onClick={() => startEditingProduct(p)}
+                          >
+                            <Pencil className="h-3.5 w-3.5" />
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="destructive"
+                            className="rounded-full h-8 w-8 p-0"
+                            onClick={() => deleteProduct(p.id)}
+                          >
+                            <Trash2 className="h-3.5 w-3.5" />
+                          </Button>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Broadcasts Section */}
+        <div className="mt-12 grid gap-7 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.1fr)]">
+          <form
+            onSubmit={createBroadcast}
             className="space-y-4 rounded-3xl border border-border bg-card p-6 shadow-card"
           >
             <h2 className="flex items-center gap-2 font-display text-lg font-semibold">
@@ -343,40 +660,11 @@ export default function AdminPage() {
                     <span className="mt-1 block text-xs">
                       {value === "mild"
                         ? "Shows once, stays dismissed."
-                        : "Re-pushed every 45s after closing."}
+                        : "Re-pushed every 45s."}
                     </span>
                   </button>
                 ))}
               </div>
-            </div>
-            <div className="grid gap-4 sm:grid-cols-2">
-              <div className="space-y-2">
-                <Label htmlFor="b-cta">Button label (optional)</Label>
-                <Input
-                  id="b-cta"
-                  value={ctaLabel}
-                  onChange={(e) => setCtaLabel(e.target.value)}
-                  placeholder="Learn more"
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="b-url">Button link (optional)</Label>
-                <Input
-                  id="b-url"
-                  value={ctaUrl}
-                  onChange={(e) => setCtaUrl(e.target.value)}
-                  placeholder="/bueno"
-                />
-              </div>
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="b-ends">Runs until (optional)</Label>
-              <Input
-                id="b-ends"
-                type="datetime-local"
-                value={endsAt}
-                onChange={(e) => setEndsAt(e.target.value)}
-              />
             </div>
             <Button
               type="submit"
@@ -386,6 +674,7 @@ export default function AdminPage() {
               {busy ? "Publishing…" : "Publish broadcast"}
             </Button>
           </form>
+
           <div className="space-y-4">
             <h2 className="font-display text-lg font-semibold">
               Published broadcasts
@@ -400,33 +689,8 @@ export default function AdminPage() {
                   key={item.id}
                   className="rounded-2xl border border-border bg-card p-5 shadow-card"
                 >
-                  <div className="flex flex-wrap items-center gap-2">
-                    <span
-                      className={`rounded-full px-2.5 py-1 text-xs font-semibold capitalize ${
-                        item.intensity === "aggressive"
-                          ? "bg-accent-soft text-destructive"
-                          : "bg-primary-soft text-primary"
-                      }`}
-                    >
-                      {item.intensity}
-                    </span>
-                    <span
-                      className={`rounded-full px-2.5 py-1 text-xs font-semibold ${
-                        item.is_active
-                          ? "bg-gold-soft text-foreground"
-                          : "bg-muted text-muted-foreground"
-                      }`}
-                    >
-                      {item.is_active ? "Live" : "Off"}
-                    </span>
-                    {item.ends_at ? (
-                      <span className="text-xs text-muted-foreground">
-                        until {new Date(item.ends_at).toLocaleString()}
-                      </span>
-                    ) : null}
-                  </div>
-                  <h3 className="mt-3 font-semibold">{item.title}</h3>
-                  <p className="mt-1 whitespace-pre-line text-sm text-muted-foreground">
+                  <h3 className="font-semibold">{item.title}</h3>
+                  <p className="mt-1 text-sm text-muted-foreground">
                     {item.body}
                   </p>
                   <div className="mt-4 flex gap-2">
@@ -434,19 +698,18 @@ export default function AdminPage() {
                       size="sm"
                       variant="outline"
                       className="rounded-full"
-                      onClick={() => toggle(item)}
+                      onClick={() => toggleBroadcast(item)}
                     >
-                      <Power className="mr-1 h-3.5 w-3.5" aria-hidden="true" />{" "}
+                      <Power className="mr-1 h-3.5 w-3.5" />{" "}
                       {item.is_active ? "Turn off" : "Turn on"}
                     </Button>
                     <Button
                       size="sm"
                       variant="destructive"
                       className="rounded-full"
-                      onClick={() => remove(item.id)}
+                      onClick={() => removeBroadcast(item.id)}
                     >
-                      <Trash2 className="mr-1 h-3.5 w-3.5" aria-hidden="true" />{" "}
-                      Delete
+                      <Trash2 className="mr-1 h-3.5 w-3.5" /> Delete
                     </Button>
                   </div>
                 </article>
@@ -454,6 +717,8 @@ export default function AdminPage() {
             )}
           </div>
         </div>
+
+        {/* Enquiries Section */}
         <div className="mt-12">
           <div className="flex flex-wrap items-center gap-3">
             <h2 className="flex items-center gap-2 font-display text-2xl font-bold">
@@ -473,54 +738,11 @@ export default function AdminPage() {
               enquiries.map((item) => (
                 <article
                   key={item.id}
-                  className={`rounded-2xl border bg-card p-5 shadow-card ${
-                    item.is_read ? "border-border" : "border-primary/50"
-                  }`}
+                  className="rounded-2xl border bg-card p-5 shadow-card"
                 >
-                  <div className="flex flex-wrap items-center gap-2">
-                    <span className="rounded-full bg-gold-soft px-2.5 py-1 text-xs font-semibold">
-                      {item.enquiry_type}
-                    </span>
-                    {!item.is_read ? (
-                      <span className="rounded-full bg-primary-soft px-2.5 py-1 text-xs font-semibold text-primary">
-                        New
-                      </span>
-                    ) : null}
-                    <span className="text-xs text-muted-foreground">
-                      {new Date(item.created_at).toLocaleString()}
-                    </span>
-                  </div>
-                  <h3 className="mt-3 font-semibold">{item.subject}</h3>
+                  <h3 className="font-semibold">{item.subject}</h3>
                   <p className="mt-1 text-sm font-medium">{item.full_name}</p>
-                  <div className="mt-2 space-y-1 text-sm text-muted-foreground">
-                    <p className="flex items-center gap-2 break-all">
-                      <Mail
-                        className="h-3.5 w-3.5 shrink-0"
-                        aria-hidden="true"
-                      />
-                      <a
-                        href={`mailto:${item.email}`}
-                        className="hover:text-primary"
-                      >
-                        {item.email}
-                      </a>
-                    </p>
-                    <p className="flex items-center gap-2">
-                      <Phone
-                        className="h-3.5 w-3.5 shrink-0"
-                        aria-hidden="true"
-                      />
-                      <a
-                        href={`tel:${item.phone}`}
-                        className="hover:text-primary"
-                      >
-                        {item.phone}
-                      </a>
-                    </p>
-                  </div>
-                  <p className="mt-3 whitespace-pre-line rounded-xl bg-secondary/60 p-3 text-sm">
-                    {item.message}
-                  </p>
+                  <p className="mt-3 text-sm">{item.message}</p>
                   <div className="mt-4 flex gap-2">
                     <Button
                       size="sm"
@@ -536,8 +758,7 @@ export default function AdminPage() {
                       className="rounded-full"
                       onClick={() => removeEnquiry(item.id)}
                     >
-                      <Trash2 className="mr-1 h-3.5 w-3.5" aria-hidden="true" />{" "}
-                      Delete
+                      <Trash2 className="mr-1 h-3.5 w-3.5" /> Delete
                     </Button>
                   </div>
                 </article>
@@ -547,7 +768,6 @@ export default function AdminPage() {
         </div>
       </div>
 
-      {/* Custom Sign Out Confirmation Modal */}
       {showSignOutModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-4 animate-in fade-in duration-200">
           <div className="w-full max-w-sm rounded-3xl border border-border bg-card p-6 shadow-2xl space-y-4">
@@ -559,8 +779,7 @@ export default function AdminPage() {
                 Sign out of admin?
               </h3>
               <p className="text-sm text-muted-foreground">
-                You will need to sign back in with your credentials to manage
-                broadcasts and enquiries.
+                You will need to sign back in with your credentials.
               </p>
             </div>
             <div className="grid grid-cols-2 gap-3 pt-2">
