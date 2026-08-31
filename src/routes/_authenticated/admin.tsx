@@ -10,6 +10,7 @@ import {
   Inbox,
   Mail,
   Phone,
+  LogOut,
 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -47,7 +48,6 @@ export default function AdminPage() {
   const [items, setItems] = useState<Broadcast[]>([]);
   const [enquiries, setEnquiries] = useState<Enquiry[]>([]);
   const [busy, setBusy] = useState(false);
-
   const [title, setTitle] = useState("");
   const [body, setBody] = useState("");
   const [intensity, setIntensity] = useState<"mild" | "aggressive">("mild");
@@ -55,21 +55,44 @@ export default function AdminPage() {
   const [ctaUrl, setCtaUrl] = useState("");
   const [endsAt, setEndsAt] = useState("");
 
-  const loadData = useCallback(async () => {
-    try {
-      const res = await fetch("/api/admin/data");
-      const data = await res.json();
-      if (!res.ok || !data.success) throw new Error(data.error);
+  // State for custom signout confirmation modal
+  const [showSignOutModal, setShowSignOutModal] = useState(false);
 
+  const loadData = useCallback(async () => {
+    console.log("[AdminPage] loadData: Starting fetch for admin data...");
+    const session = localStorage.getItem("admin_session");
+    console.log(
+      "[AdminPage] loadData: Retrieved session from localStorage:",
+      session
+    );
+    try {
+      const res = await fetch("/api/admin/data", {
+        headers: {
+          "x-admin-email": session || "",
+        },
+      });
+      console.log("[AdminPage] loadData: Response status:", res.status);
+      const data = await res.json();
+      console.log("[AdminPage] loadData: Response data payload:", data);
+      if (!res.ok || !data.success) {
+        throw new Error(data.error || "Failed to load admin data");
+      }
+      console.log(
+        "[AdminPage] loadData: Success! Setting broadcasts and enquiries items."
+      );
       setItems(data.broadcasts || []);
       setEnquiries(data.enquiries || []);
       setIsAdmin(true);
-    } catch {
+    } catch (error) {
+      console.error("[AdminPage] loadData: Error caught during fetch:", error);
       setIsAdmin(false);
     }
   }, []);
 
   useEffect(() => {
+    console.log(
+      "[AdminPage] useEffect: Component mounted, triggering loadData()."
+    );
     void loadData();
   }, [loadData]);
 
@@ -107,7 +130,6 @@ export default function AdminPage() {
   const create = async (e: React.FormEvent) => {
     e.preventDefault();
     setBusy(true);
-
     try {
       const res = await fetch("/api/admin/broadcasts", {
         method: "POST",
@@ -121,10 +143,8 @@ export default function AdminPage() {
           ends_at: endsAt ? new Date(endsAt).toISOString() : null,
         }),
       });
-
       const data = await res.json();
       if (!res.ok || !data.success) throw new Error(data.error);
-
       toast.success("Broadcast published to the site");
       setTitle("");
       setBody("");
@@ -168,10 +188,15 @@ export default function AdminPage() {
     }
   };
 
-  const signOut = async () => {
-    await fetch("/api/auth/signout", { method: "POST" });
-    router.push("/auth");
-    router.refresh();
+  const confirmSignOut = async () => {
+    try {
+      localStorage.removeItem("admin_session");
+      await fetch("/api/auth/signout", { method: "POST" });
+      router.push("/auth");
+      router.refresh();
+    } catch (error) {
+      console.error("[AdminPage] signOut error:", error);
+    }
   };
 
   if (isAdmin === null) {
@@ -200,7 +225,10 @@ export default function AdminPage() {
           <p className="mt-2 text-sm text-muted-foreground">
             This account does not have administrator permissions.
           </p>
-          <Button className="mt-5 rounded-full" onClick={signOut}>
+          <Button
+            className="mt-5 rounded-full"
+            onClick={() => setShowSignOutModal(true)}
+          >
             Sign out
           </Button>
         </div>
@@ -209,7 +237,7 @@ export default function AdminPage() {
   }
 
   return (
-    <section className="section-y">
+    <section className="section-y relative">
       <div className="container-page">
         <div className="flex flex-wrap items-center justify-between gap-4">
           <div>
@@ -220,11 +248,14 @@ export default function AdminPage() {
               Site Broadcasts
             </h1>
           </div>
-          <Button variant="outline" className="rounded-full" onClick={signOut}>
+          <Button
+            variant="outline"
+            className="rounded-full"
+            onClick={() => setShowSignOutModal(true)}
+          >
             Sign out
           </Button>
         </div>
-
         <div className="mt-7 grid gap-7 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.1fr)]">
           <form
             onSubmit={create}
@@ -309,9 +340,6 @@ export default function AdminPage() {
                 value={endsAt}
                 onChange={(e) => setEndsAt(e.target.value)}
               />
-              <p className="text-xs text-muted-foreground">
-                Leave empty to run until you switch it off.
-              </p>
             </div>
             <Button
               type="submit"
@@ -321,7 +349,6 @@ export default function AdminPage() {
               {busy ? "Publishing…" : "Publish broadcast"}
             </Button>
           </form>
-
           <div className="space-y-4">
             <h2 className="font-display text-lg font-semibold">
               Published broadcasts
@@ -390,7 +417,6 @@ export default function AdminPage() {
             )}
           </div>
         </div>
-
         <div className="mt-12">
           <div className="flex flex-wrap items-center gap-3">
             <h2 className="flex items-center gap-2 font-display text-2xl font-bold">
@@ -401,7 +427,6 @@ export default function AdminPage() {
               {enquiries.filter((e) => !e.is_read).length} new
             </span>
           </div>
-
           <div className="mt-5 grid gap-4 md:grid-cols-2">
             {enquiries.length === 0 ? (
               <p className="rounded-2xl border border-dashed border-border p-6 text-sm text-muted-foreground">
@@ -484,6 +509,42 @@ export default function AdminPage() {
           </div>
         </div>
       </div>
+
+      {/* Custom Sign Out Confirmation Modal */}
+      {showSignOutModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-4 animate-in fade-in duration-200">
+          <div className="w-full max-w-sm rounded-3xl border border-border bg-card p-6 shadow-2xl space-y-4">
+            <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-primary-soft text-primary mx-auto">
+              <LogOut className="h-6 w-6" aria-hidden="true" />
+            </div>
+            <div className="text-center space-y-1">
+              <h3 className="font-display text-lg font-bold">
+                Sign out of admin?
+              </h3>
+              <p className="text-sm text-muted-foreground">
+                You will need to sign back in with your credentials to manage
+                broadcasts and enquiries.
+              </p>
+            </div>
+            <div className="grid grid-cols-2 gap-3 pt-2">
+              <Button
+                variant="outline"
+                className="rounded-full"
+                onClick={() => setShowSignOutModal(false)}
+              >
+                Cancel
+              </Button>
+              <Button
+                variant="destructive"
+                className="rounded-full"
+                onClick={confirmSignOut}
+              >
+                Sign out
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
     </section>
   );
 }

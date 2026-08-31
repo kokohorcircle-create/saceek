@@ -15,15 +15,14 @@ export async function POST(request: Request) {
         // Clear OTP after successful use
         globalOtpStore.delete(cleanEmail);
 
-        const response = NextResponse.json({ success: true, message: "Verified" });
-        response.cookies.set("admin_session", cleanEmail, {
-            httpOnly: true,
-            secure: process.env.NODE_ENV === "production",
-            path: "/",
-            maxAge: 60 * 60 * 24 * 7, // 1 week
+        // Return the token/session data in JSON so the client can save it to localStorage
+        return NextResponse.json({ 
+            success: true, 
+            message: "Verified",
+            session: {
+                email: cleanEmail
+            }
         });
-
-        return response;
     } catch (error) {
         return NextResponse.json({ success: false, error: "Verification failed" }, { status: 500 });
     }

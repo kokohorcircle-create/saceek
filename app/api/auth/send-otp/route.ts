@@ -33,7 +33,7 @@ const transporter = nodemailer.createTransport({
   port: 465,
   secure: true,
   auth: {
-    user: process.env.ZOHO_EMAIL || "admin@boringthinkers.com",
+    user: process.env.ZOHO_EMAIL || "saceek.com",
     pass: process.env.ZOHO_APP_PASSWORD?.replace(/\s+/g, ""),
   },
 });
@@ -55,9 +55,9 @@ export async function POST(request: Request) {
 
     // Send via Zoho Mail with the modern styled HTML template
     await transporter.sendMail({
-      from: `"Saceek International" <${process.env.ZOHO_EMAIL || "admin@boringthinkers.com"}>`,
+      from: `"Saceek International" <${process.env.ZOHO_EMAIL || "saceek.com"}>`,
       to: cleanEmail,
-      subject: "🔒 Your Saceek Admin Verification Code",
+      subject: "Your Saceek Admin Verification Code",
       text: `Your Saceek admin verification code is: ${otp}. It expires in 10 minutes.`,
       html: `
         <!DOCTYPE html>
@@ -80,7 +80,7 @@ export async function POST(request: Request) {
                 <td style="padding: 40px 40px 30px 40px;">
                   <p style="color: #334155; font-size: 16px; line-height: 1.5; margin: 0 0 16px 0;">Hello,</p>
                   <p style="color: #334155; font-size: 15px; line-height: 1.5; margin: 0 0 24px 0;">You requested secure access to the Saceek Admin Dashboard. Use the verification code below to complete your login:</p>
-                  
+
                   <!-- OTP Box -->
                   <table align="center" border="0" cellpadding="0" cellspacing="0" width="100%" style="margin: 20px 0;">
                     <tr>

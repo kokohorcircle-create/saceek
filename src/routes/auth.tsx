@@ -17,6 +17,7 @@ export default function AuthPage() {
 
   const handleSendOtp = async (e: React.FormEvent) => {
     e.preventDefault();
+    console.log("[AuthPage] handleSendOtp: Submitting email for OTP:", email);
     setBusy(true);
     setErrorMessage(null);
 
@@ -26,16 +27,25 @@ export default function AuthPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email }),
       });
+      console.log(
+        "[AuthPage] handleSendOtp: Response status:",
+        response.status
+      );
 
       const data = await response.json();
+      console.log("[AuthPage] handleSendOtp: Response data:", data);
 
       if (!response.ok || !data.success) {
         throw new Error(data.error || "Admin not found or failed to send OTP");
       }
 
       toast.success("OTP sent to your email.");
+      console.log(
+        "[AuthPage] handleSendOtp: OTP sent successfully, changing step to 'otp'"
+      );
       setStep("otp");
     } catch (error) {
+      console.error("[AuthPage] handleSendOtp: Error caught:", error);
       const msg = error instanceof Error ? error.message : "Admin not found";
       setErrorMessage(msg);
       toast.error(msg);
@@ -46,6 +56,7 @@ export default function AuthPage() {
 
   const handleVerifyOtp = async (e: React.FormEvent) => {
     e.preventDefault();
+    console.log("[AuthPage] handleVerifyOtp: Verifying OTP for email:", email);
     setBusy(true);
     setErrorMessage(null);
 
@@ -55,17 +66,37 @@ export default function AuthPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email, otp }),
       });
+      console.log(
+        "[AuthPage] handleVerifyOtp: Response status:",
+        response.status
+      );
 
       const data = await response.json();
+      console.log("[AuthPage] handleVerifyOtp: Response data:", data);
 
       if (!response.ok || !data.success) {
         throw new Error(data.error || "Invalid or expired OTP");
       }
 
+      // Save the session data to localStorage
+      if (data.session) {
+        console.log(
+          "[AuthPage] handleVerifyOtp: Saving session data to localStorage:",
+          data.session
+        );
+        localStorage.setItem("admin_session", JSON.stringify(data.session));
+      } else {
+        console.warn(
+          "[AuthPage] handleVerifyOtp: Warning - success was true, but no session data returned from API."
+        );
+      }
+
       toast.success("Signed in successfully.");
+      console.log("[AuthPage] handleVerifyOtp: Redirecting to /admin...");
       router.push("/admin");
       router.refresh();
     } catch (error) {
+      console.error("[AuthPage] handleVerifyOtp: Error caught:", error);
       const msg =
         error instanceof Error ? error.message : "Verification failed";
       setErrorMessage(msg);
@@ -74,6 +105,13 @@ export default function AuthPage() {
       setBusy(false);
     }
   };
+
+  console.log(
+    "[AuthPage] Render state: Current step is:",
+    step,
+    "| Busy:",
+    busy
+  );
 
   return (
     <section className="section-y">
@@ -102,7 +140,9 @@ export default function AuthPage() {
                   required
                   placeholder="name@domain.com"
                   value={email}
-                  onChange={(e) => setEmail(e.target.value)}
+                  onChange={(e) => {
+                    setEmail(e.target.value);
+                  }}
                   autoComplete="email"
                 />
               </div>
@@ -139,6 +179,7 @@ export default function AuthPage() {
                 type="button"
                 className="w-full text-center text-sm text-muted-foreground underline hover:text-foreground"
                 onClick={() => {
+                  console.log("[AuthPage] Switching back to email step.");
                   setStep("email");
                   setErrorMessage(null);
                 }}

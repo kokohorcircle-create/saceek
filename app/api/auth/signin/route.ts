@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { connectDB } from "@/lib/mongodb";
 import { User } from "@/models/User";
-import bcrypt from "bcryptjs"; // run npm install bcryptjs @types/bcryptjs
+import bcrypt from "bcryptjs"; 
 
 export async function POST(request: Request) {
     try {
@@ -13,15 +13,15 @@ export async function POST(request: Request) {
             return NextResponse.json({ success: false, error: "Invalid email or password" }, { status: 401 });
         }
 
-        const response = NextResponse.json({ success: true, message: "Logged in" });
-        response.cookies.set("admin_session", user._id.toString(), {
-            httpOnly: true,
-            secure: process.env.NODE_ENV === "production",
-            path: "/",
-            maxAge: 60 * 60 * 24 * 7, // 1 week
+        // Return the session/user ID in JSON so the client can save it to localStorage
+        return NextResponse.json({ 
+            success: true, 
+            message: "Logged in",
+            session: {
+                userId: user._id.toString(),
+                email: user.email
+            }
         });
-
-        return response;
     } catch (error) {
         return NextResponse.json({ success: false, error: "Server error" }, { status: 500 });
     }
