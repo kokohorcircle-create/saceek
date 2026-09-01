@@ -12,7 +12,6 @@ const ALLOWED_ADMINS = [
 async function validateAdmin(request: Request) {
   const sessionHeader = request.headers.get("x-admin-email");
   let cleanEmail = "";
-
   if (sessionHeader) {
     try {
       if (sessionHeader.startsWith("{")) {
@@ -25,26 +24,34 @@ async function validateAdmin(request: Request) {
       cleanEmail = sessionHeader.toLowerCase().trim();
     }
   }
-
   return Boolean(cleanEmail && ALLOWED_ADMINS.includes(cleanEmail));
 }
 
-
-
-export async function GET() {
+export async function GET(request: Request) {
   try {
     await connectDB();
 
-    const now = new Date();
+    const { searchParams } = new URL(request.url);
+    const isAdminQuery = searchParams.get("admin") === "true";
+    const isAdmin = await validateAdmin(request);
 
-    // Only return active broadcasts that haven't expired
-    const broadcasts = await Broadcast.find({
-      is_active: true,
-      $or: [
-        { ends_at: null },
-        { ends_at: { $gt: now } },
-      ],
-    })
+    // If an admin fetch is requested, validate permissions
+    if (isAdminQuery && !isAdmin) {
+      return NextResponse.json({ success: false, error: "Unauthorized" }, { status: 401 });
+    }
+
+    let filter = {};
+
+    // Public view: filter by active status and expiry date
+    if (!isAdminQuery && !isAdmin) {
+      const now = new Date();
+      filter = {
+        is_active: true,
+        $or: [{ ends_at: null }, { ends_at: { $gt: now } }],
+      };
+    }
+
+    const broadcasts = await Broadcast.find(filter)
       .sort({ created_at: -1 })
       .lean();
 
@@ -55,16 +62,14 @@ export async function GET() {
       intensity: b.intensity || "mild",
       cta_label: b.cta_label || null,
       cta_url: b.cta_url || null,
+      is_active: Boolean(b.is_active),
       ends_at: b.ends_at ? new Date(b.ends_at).toISOString() : null,
       created_at: b.created_at
         ? new Date(b.created_at).toISOString()
         : new Date().toISOString(),
     }));
 
-    return NextResponse.json({
-      success: true,
-      broadcasts: formatted,
-    });
+    return NextResponse.json({ success: true, broadcasts: formatted });
   } catch (error) {
     console.error("[API /api/broadcasts] GET Error:", error);
     const message = error instanceof Error ? error.message : "Server Error";

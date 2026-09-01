@@ -12,7 +12,6 @@ const ALLOWED_ADMINS = [
 async function validateAdmin(request: Request) {
     const sessionHeader = request.headers.get("x-admin-email");
     let cleanEmail = "";
-
     if (sessionHeader) {
         try {
             if (sessionHeader.startsWith("{")) {
@@ -25,7 +24,6 @@ async function validateAdmin(request: Request) {
             cleanEmail = sessionHeader.toLowerCase().trim();
         }
     }
-
     return Boolean(cleanEmail && ALLOWED_ADMINS.includes(cleanEmail));
 }
 
@@ -33,37 +31,59 @@ export async function PATCH(
     request: Request,
     { params }: { params: Promise<{ id: string }> }
 ) {
-    if (!(await validateAdmin(request))) {
+    console.log("[PATCH /api/admin/broadcasts/[id]] --- Request Started ---");
+
+    const isAdminValid = await validateAdmin(request);
+    console.log("[PATCH /api/admin/broadcasts/[id]] Admin Validation Result:", isAdminValid);
+
+    if (!isAdminValid) {
+        console.warn("[PATCH /api/admin/broadcasts/[id]] Unauthorized access attempt.");
         return NextResponse.json({ success: false, error: "Unauthorized" }, { status: 401 });
     }
 
     try {
+        console.log("[PATCH /api/admin/broadcasts/[id]] Connecting to database...");
         await connectDB();
-        const { id } = await params;
+        console.log("[PATCH /api/admin/broadcasts/[id]] Database connected successfully.");
+
+        const resolvedParams = await params;
+        console.log("[PATCH /api/admin/broadcasts/[id]] Resolved Params:", resolvedParams);
+        const { id } = resolvedParams;
+
         const body = await request.json();
+        console.log("[PATCH /api/admin/broadcasts/[id]] Request Body:", body);
+
+        const isActive = Boolean(body.is_active);
+        console.log(`[PATCH /api/admin/broadcasts/[id]] Updating broadcast ID: "${id}" | Target is_active:`, isActive);
 
         const updated = await Broadcast.findByIdAndUpdate(
             id,
-            { $set: { is_active: !!body.is_active } },
-            { new: true }
+            { $set: { is_active: isActive } },
+            { new: true, runValidators: true }
         ).lean();
 
+        console.log("[PATCH /api/admin/broadcasts/[id]] Database Update Result:", updated);
+
         if (!updated) {
+            console.warn(`[PATCH /api/admin/broadcasts/[id]] Broadcast with ID "${id}" was not found.`);
             return NextResponse.json(
                 { success: false, error: "Broadcast not found" },
                 { status: 404 }
             );
         }
 
-        return NextResponse.json({
+        const responsePayload = {
             success: true,
             broadcast: {
                 id: (updated as any)._id.toString(),
-                is_active: (updated as any).is_active,
+                is_active: Boolean((updated as any).is_active),
             },
-        });
+        };
+
+        console.log("[PATCH /api/admin/broadcasts/[id]] Returning Success Response:", responsePayload);
+        return NextResponse.json(responsePayload);
     } catch (error) {
-        console.error("[API /api/admin/broadcasts/[id]] PATCH Error:", error);
+        console.error("[PATCH /api/admin/broadcasts/[id]] Error Encountered:", error);
         const message = error instanceof Error ? error.message : "Server Error";
         return NextResponse.json({ success: false, error: message }, { status: 500 });
     }
