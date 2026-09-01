@@ -1083,7 +1083,7 @@ export default function AdminPage() {
                   {item.message}
                 </p>
 
-                <div className="pt-1 flex gap-2">
+                {/* <div className="pt-1 flex gap-2">
                   <Button
                     size="sm"
                     variant="outline"
@@ -1100,7 +1100,7 @@ export default function AdminPage() {
                   >
                     <Trash2 className="mr-1 h-3.5 w-3.5" /> Delete
                   </Button>
-                </div>
+                </div> */}
               </article>
             ))
           )}
