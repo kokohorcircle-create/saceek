@@ -494,9 +494,8 @@ export default function AdminPage() {
 
   const executeRemoveBroadcast = async (id: string) => {
     setActionLoading(true);
-    console.log("[Broadcasts] Deleting broadcast ID:", id);
-    setItems((prev) => prev.filter((b) => b.id !== id));
     const session = localStorage.getItem("admin_session");
+  
     try {
       const res = await fetchWithTimeout(`/api/admin/broadcasts/${id}`, {
         method: "DELETE",
@@ -504,15 +503,23 @@ export default function AdminPage() {
           "x-admin-email": session || "",
         },
       });
+  
+      // Check if the response is valid JSON before parsing
+      const contentType = res.headers.get("content-type");
+      if (!contentType || !contentType.includes("application/json")) {
+        throw new Error(`Server returned non-JSON response (${res.status} ${res.statusText})`);
+      }
+  
       const data = await res.json();
-      if (!res.ok || !data.success) throw new Error(data.error);
-      console.log("[Broadcasts] Deleted broadcast ID:", id);
+      if (!res.ok || !data.success) {
+        throw new Error(data.error || "Failed to delete broadcast");
+      }
+  
       toast.success("Broadcast deleted");
       await loadData();
     } catch (error) {
       console.error("[Broadcasts] Error deleting broadcast:", error);
       toast.error(error instanceof Error ? error.message : "Failed to delete");
-      await loadData();
     } finally {
       setActionLoading(false);
       setConfirmModal((prev) => ({ ...prev, isOpen: false }));
