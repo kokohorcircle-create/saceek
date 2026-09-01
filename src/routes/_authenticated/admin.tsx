@@ -343,6 +343,16 @@ export default function AdminPage() {
   const saveEditedProduct = async (id: string) => {
     console.log("[Products] Saving updates for product ID:", id);
     const session = localStorage.getItem("admin_session");
+
+    // Parse numeric values safely
+    const parsedPrice = parseFloat(editPrice);
+    const parsedStock = parseInt(editStock, 10);
+
+    if (isNaN(parsedPrice)) {
+      toast.error("Please enter a valid price");
+      return;
+    }
+
     try {
       const res = await fetchWithTimeout(`/api/admin/products/${id}`, {
         method: "PATCH",
@@ -351,15 +361,27 @@ export default function AdminPage() {
           "x-admin-email": session || "",
         },
         body: JSON.stringify({
-          name: editName,
-          price: parseFloat(editPrice),
-          stock: parseInt(editStock) || 0,
+          name: editName.trim(),
+          price: parsedPrice,
+          stock: isNaN(parsedStock) ? 0 : parsedStock,
         }),
       });
+
+      // Check if server returned HTML instead of JSON
+      const contentType = res.headers.get("content-type");
+      if (!contentType || !contentType.includes("application/json")) {
+        throw new Error(
+          `Server route error (${res.status}: ${res.statusText})`
+        );
+      }
+
       const data = await res.json();
-      if (!res.ok || !data.success) throw new Error(data.error);
+      if (!res.ok || !data.success) {
+        throw new Error(data.error || "Failed to update product");
+      }
+
       console.log("[Products] Product updated:", id);
-      toast.success("Product updated");
+      toast.success("Product updated successfully");
       setEditingProductId(null);
       await loadData();
     } catch (error) {
@@ -386,18 +408,27 @@ export default function AdminPage() {
 
   const executeDeleteProduct = async (id: string) => {
     setActionLoading(true);
-    console.log("[Products] Deleting product ID:", id);
-    setProducts((prev) => prev.filter((p) => p.id !== id));
     const session = localStorage.getItem("admin_session");
+
     try {
       const res = await fetchWithTimeout(`/api/admin/products/${id}`, {
         method: "DELETE",
-        headers: { "x-admin-email": session || "" },
+        headers: {
+          "x-admin-email": session || "",
+        },
       });
+
+      const contentType = res.headers.get("content-type");
+      if (!contentType || !contentType.includes("application/json")) {
+        throw new Error(`Server error (${res.status}: ${res.statusText})`);
+      }
+
       const data = await res.json();
-      if (!res.ok || !data.success) throw new Error(data.error);
-      console.log("[Products] Product deleted:", id);
-      toast.success("Product deleted");
+      if (!res.ok || !data.success) {
+        throw new Error(data.error || "Failed to delete product");
+      }
+
+      toast.success("Product deleted successfully");
       await loadData();
     } catch (error) {
       console.error("[Products] Error deleting product:", error);
@@ -410,7 +441,6 @@ export default function AdminPage() {
       setConfirmModal((prev) => ({ ...prev, isOpen: false }));
     }
   };
-
   const toggleBroadcast = (item: Broadcast) => {
     const action = item.is_active ? "Turn Off" : "Turn On";
     console.log(
@@ -495,7 +525,7 @@ export default function AdminPage() {
   const executeRemoveBroadcast = async (id: string) => {
     setActionLoading(true);
     const session = localStorage.getItem("admin_session");
-  
+
     try {
       const res = await fetchWithTimeout(`/api/admin/broadcasts/${id}`, {
         method: "DELETE",
@@ -503,18 +533,20 @@ export default function AdminPage() {
           "x-admin-email": session || "",
         },
       });
-  
+
       // Check if the response is valid JSON before parsing
       const contentType = res.headers.get("content-type");
       if (!contentType || !contentType.includes("application/json")) {
-        throw new Error(`Server returned non-JSON response (${res.status} ${res.statusText})`);
+        throw new Error(
+          `Server returned non-JSON response (${res.status} ${res.statusText})`
+        );
       }
-  
+
       const data = await res.json();
       if (!res.ok || !data.success) {
         throw new Error(data.error || "Failed to delete broadcast");
       }
-  
+
       toast.success("Broadcast deleted");
       await loadData();
     } catch (error) {
