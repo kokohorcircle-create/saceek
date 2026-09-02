@@ -143,6 +143,15 @@ export default function AdminPage() {
     }
   };
 
+  // ── Cookie helpers (specific keys) ──────────────────────────────────────
+  const setCookie = (name: string, value: string, maxAgeSeconds = 90) => {
+    document.cookie = `${name}=${encodeURIComponent(value)}; path=/; max-age=${maxAgeSeconds}; SameSite=Lax`;
+  };
+
+  const clearCookie = (name: string) => {
+    document.cookie = `${name}=; path=/; max-age=0`;
+  };
+
   const loadData = useCallback(async () => {
     console.log("[AdminPage] Loading data...");
     const session = localStorage.getItem("admin_session");
@@ -340,11 +349,11 @@ export default function AdminPage() {
     setEditStock(p.stock.toString());
   };
 
+  // ────────────────────── PRODUCT EDIT (uses cookies) ──────────────────────
   const saveEditedProduct = async (id: string) => {
     console.log("[Products] Saving updates for product ID:", id);
     const session = localStorage.getItem("admin_session");
 
-    // Parse numeric values safely
     const parsedPrice = parseFloat(editPrice);
     const parsedStock = parseInt(editStock, 10);
 
@@ -353,21 +362,26 @@ export default function AdminPage() {
       return;
     }
 
+    const editPayload = {
+      name: editName.trim(),
+      price: parsedPrice,
+      stock: isNaN(parsedStock) ? 0 : parsedStock,
+    };
+
+    // Save ID + data to specific cookies
+    setCookie("admin_product_id", id);
+    setCookie("admin_product_edit", JSON.stringify(editPayload));
+
     try {
-      const res = await fetchWithTimeout(`/api/admin/products/${id}`, {
+      const res = await fetchWithTimeout(`/api/admin/products`, {
         method: "PATCH",
         headers: {
           "Content-Type": "application/json",
           "x-admin-email": session || "",
         },
-        body: JSON.stringify({
-          name: editName.trim(),
-          price: parsedPrice,
-          stock: isNaN(parsedStock) ? 0 : parsedStock,
-        }),
+        body: JSON.stringify(editPayload),
       });
 
-      // Check if server returned HTML instead of JSON
       const contentType = res.headers.get("content-type");
       if (!contentType || !contentType.includes("application/json")) {
         throw new Error(
@@ -389,6 +403,9 @@ export default function AdminPage() {
       toast.error(
         error instanceof Error ? error.message : "Failed to update product"
       );
+    } finally {
+      clearCookie("admin_product_id");
+      clearCookie("admin_product_edit");
     }
   };
 
@@ -406,12 +423,16 @@ export default function AdminPage() {
     });
   };
 
+  // ────────────────────── PRODUCT DELETE (uses cookies) ────────────────────
   const executeDeleteProduct = async (id: string) => {
     setActionLoading(true);
     const session = localStorage.getItem("admin_session");
 
+    // Save delete ID to specific cookie
+    setCookie("admin_product_delete_id", id);
+
     try {
-      const res = await fetchWithTimeout(`/api/admin/products/${id}`, {
+      const res = await fetchWithTimeout(`/api/admin/products`, {
         method: "DELETE",
         headers: {
           "x-admin-email": session || "",
@@ -439,8 +460,10 @@ export default function AdminPage() {
     } finally {
       setActionLoading(false);
       setConfirmModal((prev) => ({ ...prev, isOpen: false }));
+      clearCookie("admin_product_delete_id");
     }
   };
+
   const toggleBroadcast = (item: Broadcast) => {
     const action = item.is_active ? "Turn Off" : "Turn On";
     console.log(
@@ -461,6 +484,7 @@ export default function AdminPage() {
     });
   };
 
+  // ────────────────────── BROADCAST TOGGLE (uses cookies) ──────────────────
   const executeToggleBroadcast = async (item: Broadcast) => {
     setActionLoading(true);
     const nextActiveState = !item.is_active;
@@ -471,7 +495,7 @@ export default function AdminPage() {
       nextActiveState
     );
 
-    // Immediate optimistic state update
+    // Optimistic update
     setItems((prevItems) =>
       prevItems.map((b) =>
         b.id === item.id ? { ...b, is_active: nextActiveState } : b
@@ -479,8 +503,12 @@ export default function AdminPage() {
     );
 
     const session = localStorage.getItem("admin_session");
+
+    // Save ID to cookie
+    setCookie("admin_broadcast_id", item.id);
+
     try {
-      const res = await fetchWithTimeout(`/api/admin/broadcasts/${item.id}`, {
+      const res = await fetchWithTimeout(`/api/admin/broadcasts`, {
         method: "PATCH",
         headers: {
           "Content-Type": "application/json",
@@ -505,6 +533,7 @@ export default function AdminPage() {
     } finally {
       setActionLoading(false);
       setConfirmModal((prev) => ({ ...prev, isOpen: false }));
+      clearCookie("admin_broadcast_id");
     }
   };
 
@@ -522,19 +551,22 @@ export default function AdminPage() {
     });
   };
 
+  // ────────────────────── BROADCAST DELETE (uses cookies) ──────────────────
   const executeRemoveBroadcast = async (id: string) => {
     setActionLoading(true);
     const session = localStorage.getItem("admin_session");
 
+    // Save delete ID to cookie
+    setCookie("admin_broadcast_delete_id", id);
+
     try {
-      const res = await fetchWithTimeout(`/api/admin/broadcasts/${id}`, {
+      const res = await fetchWithTimeout(`/api/admin/broadcasts`, {
         method: "DELETE",
         headers: {
           "x-admin-email": session || "",
         },
       });
 
-      // Check if the response is valid JSON before parsing
       const contentType = res.headers.get("content-type");
       if (!contentType || !contentType.includes("application/json")) {
         throw new Error(
@@ -555,6 +587,7 @@ export default function AdminPage() {
     } finally {
       setActionLoading(false);
       setConfirmModal((prev) => ({ ...prev, isOpen: false }));
+      clearCookie("admin_broadcast_delete_id");
     }
   };
 
@@ -1095,7 +1128,6 @@ export default function AdminPage() {
                     {item.full_name}
                   </p>
 
-                  {/* Customer Email & Phone display */}
                   <div className="mt-1 flex flex-wrap gap-3 text-xs text-muted-foreground">
                     {item.email && (
                       <a
@@ -1121,25 +1153,6 @@ export default function AdminPage() {
                 <p className="text-sm text-foreground/90 bg-muted/40 p-3 rounded-xl border border-border/50">
                   {item.message}
                 </p>
-
-                {/* <div className="pt-1 flex gap-2">
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    className="rounded-full"
-                    onClick={() => markRead(item)}
-                  >
-                    {item.is_read ? "Mark unread" : "Mark read"}
-                  </Button>
-                  <Button
-                    size="sm"
-                    variant="destructive"
-                    className="rounded-full"
-                    onClick={() => removeEnquiry(item.id)}
-                  >
-                    <Trash2 className="mr-1 h-3.5 w-3.5" /> Delete
-                  </Button>
-                </div> */}
               </article>
             ))
           )}

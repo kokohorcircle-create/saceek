@@ -27,6 +27,19 @@ async function validateAdmin(request: Request) {
   return Boolean(cleanEmail && ALLOWED_ADMINS.includes(cleanEmail));
 }
 
+function getCookie(request: Request, name: string): string | null {
+  const cookieHeader = request.headers.get("cookie");
+  if (!cookieHeader) return null;
+
+  const cookies = Object.fromEntries(
+    cookieHeader.split(";").map((c) => {
+      const [k, ...v] = c.trim().split("=");
+      return [k, decodeURIComponent(v.join("=") || "")];
+    })
+  );
+  return cookies[name] || null;
+}
+
 export async function GET(request: Request) {
   try {
     await connectDB();
@@ -35,14 +48,15 @@ export async function GET(request: Request) {
     const isAdminQuery = searchParams.get("admin") === "true";
     const isAdmin = await validateAdmin(request);
 
-    // If an admin fetch is requested, validate permissions
     if (isAdminQuery && !isAdmin) {
-      return NextResponse.json({ success: false, error: "Unauthorized" }, { status: 401 });
+      return NextResponse.json(
+        { success: false, error: "Unauthorized" },
+        { status: 401 }
+      );
     }
 
     let filter = {};
 
-    // Public view: filter by active status and expiry date
     if (!isAdminQuery && !isAdmin) {
       const now = new Date();
       filter = {
@@ -71,15 +85,21 @@ export async function GET(request: Request) {
 
     return NextResponse.json({ success: true, broadcasts: formatted });
   } catch (error) {
-    console.error("[API /api/broadcasts] GET Error:", error);
+    console.error("[API /api/admin/broadcasts] GET Error:", error);
     const message = error instanceof Error ? error.message : "Server Error";
-    return NextResponse.json({ success: false, error: message }, { status: 500 });
+    return NextResponse.json(
+      { success: false, error: message },
+      { status: 500 }
+    );
   }
 }
 
 export async function POST(request: Request) {
   if (!(await validateAdmin(request))) {
-    return NextResponse.json({ success: false, error: "Unauthorized" }, { status: 401 });
+    return NextResponse.json(
+      { success: false, error: "Unauthorized" },
+      { status: 401 }
+    );
   }
 
   try {
@@ -126,6 +146,104 @@ export async function POST(request: Request) {
   } catch (error) {
     console.error("[API /api/admin/broadcasts] POST Error:", error);
     const message = error instanceof Error ? error.message : "Server Error";
-    return NextResponse.json({ success: false, error: message }, { status: 500 });
+    return NextResponse.json(
+      { success: false, error: message },
+      { status: 500 }
+    );
+  }
+}
+
+// ────────────────────── PATCH (Toggle) – ID from cookie only ──────────────
+export async function PATCH(request: Request) {
+  if (!(await validateAdmin(request))) {
+    return NextResponse.json(
+      { success: false, error: "Unauthorized" },
+      { status: 401 }
+    );
+  }
+
+  try {
+    await connectDB();
+
+    const id = getCookie(request, "admin_broadcast_id");
+
+    if (!id) {
+      return NextResponse.json(
+        { success: false, error: "Missing broadcast ID in cookie" },
+        { status: 400 }
+      );
+    }
+
+    const body = await request.json();
+    const isActive = Boolean(body.is_active);
+
+    const updated = await Broadcast.findByIdAndUpdate(
+      id,
+      { $set: { is_active: isActive } },
+      { new: true }
+    ).lean();
+
+    if (!updated) {
+      return NextResponse.json(
+        { success: false, error: "Broadcast not found" },
+        { status: 404 }
+      );
+    }
+
+    return NextResponse.json({
+      success: true,
+      broadcast: {
+        id: (updated as any)._id.toString(),
+        is_active: Boolean((updated as any).is_active),
+      },
+    });
+  } catch (error) {
+    console.error("[API /api/admin/broadcasts] PATCH Error:", error);
+    const message = error instanceof Error ? error.message : "Server Error";
+    return NextResponse.json(
+      { success: false, error: message },
+      { status: 500 }
+    );
+  }
+}
+
+// ────────────────────── DELETE – ID from cookie only ──────────────────────
+export async function DELETE(request: Request) {
+  if (!(await validateAdmin(request))) {
+    return NextResponse.json(
+      { success: false, error: "Unauthorized" },
+      { status: 401 }
+    );
+  }
+
+  try {
+    await connectDB();
+
+    const id = getCookie(request, "admin_broadcast_delete_id");
+
+    if (!id) {
+      return NextResponse.json(
+        { success: false, error: "Missing broadcast ID in cookie" },
+        { status: 400 }
+      );
+    }
+
+    const deleted = await Broadcast.findByIdAndDelete(id);
+
+    if (!deleted) {
+      return NextResponse.json(
+        { success: false, error: "Broadcast not found" },
+        { status: 404 }
+      );
+    }
+
+    return NextResponse.json({ success: true });
+  } catch (error) {
+    console.error("[API /api/admin/broadcasts] DELETE Error:", error);
+    const message = error instanceof Error ? error.message : "Server Error";
+    return NextResponse.json(
+      { success: false, error: message },
+      { status: 500 }
+    );
   }
 }
